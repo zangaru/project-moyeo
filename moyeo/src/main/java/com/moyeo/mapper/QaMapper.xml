@@ -1,0 +1,289 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.moyeo.mapper.QaMapper">
+	
+	<!-- 회원 -->
+	
+	<!-- 1:1 문의 등록 -->
+	<insert id="insertQa">
+		<selectKey resultType="int" keyProperty="qaIdx"
+			order="BEFORE">
+			SELECT qa_seq.nextval
+			FROM DUAL
+		</selectKey>
+			INSERT INTO 
+			qa (
+				qa_idx
+				, userinfo_id
+				, qa_option
+				, qa_title
+				, qa_content
+				, qa_img1
+				, qa_img2
+				, qa_img3
+				, qa_regdate
+			)
+			
+			VALUES (
+				#{qaIdx}
+				, #{userinfoId}
+				, #{qaOption}
+				, #{qaTitle}
+				, #{qaContent}
+				, #{qaImg1}
+				, #{qaImg2}
+				, #{qaImg3}
+				, sysdate
+			)
+	</insert>
+	
+	<!-- 1:1 문의 수정 -->
+	<update id="updateQa">
+		UPDATE qa
+		<set>
+			<if test="qaOption != null and qaOption != ''">
+				qa_option = #{qaOption},
+			</if>
+			<if test="qaTitle != null and qaTitle != ''">
+				qa_title = #{qaTitle},
+			</if>
+			<if test="qaContent != null and qaContent != ''">
+				qa_content = #{qaContent},
+			</if>
+			<if test="qaImg1 != null and qaImg1 != ''">
+				qa_img1 = #{qaImg1},
+			</if>
+			<if test="qaImg2 != null and qaImg2 != ''">
+				qa_img2 = #{qaImg2},
+			</if>
+			<if test="qaImg3 != null and qaImg3 != ''">
+				qa_img3 = #{qaImg3},
+			</if>
+			qa_modifydate = sysdate
+		</set>
+		WHERE qa_idx=#{qaIdx}
+	</update>
+	
+	
+	<!-- 1:1 문의 삭제 -->
+	<delete id="deleteQa">
+		DELETE 
+		FROM qa 
+		WHERE qa_idx=#{qaIdx}
+	</delete>
+	
+
+	<!-- 검색  -->
+	
+	<!-- 1:1문의 상세 페이지 출력 -->
+	<select id="selectQaInfo" resultType="Qa">
+		SELECT
+			qa_idx
+			, userinfo_id
+			, qa_option
+			, qa_title
+			, qa_content
+			, qa_img1
+			, qa_img2
+			, qa_img3
+			, TO_CHAR(qa_regdate, 'yyyy-mm-dd') as qa_regdate
+			, qa_modifydate
+		FROM qa
+		WHERE qa_idx=#{qaIdx}
+	</select>
+	
+	
+	<!-- 여기서부터 바뀜 -->
+	
+	<!-- 전체 레코드 수 검색 -->
+	<select id="selectQaCount" resultType="int">
+		SELECT count(*)
+		FROM qa
+	</select>
+	
+	<!-- 1:1문의 전체 목록 검색 -->
+	<select id="selectQaList" resultType="Qa">
+		SELECT
+			qa_idx
+			, userinfo_id
+			, qa_option
+			, qa_title
+			, qa_content
+			, qa_img1
+			, qa_img2
+			, qa_img3
+			, TO_CHAR(qa_regdate, 'yyyy-mm-dd') as qa_regdate
+			, qa_reply_status
+		FROM (
+			SELECT rownum rn,
+					qa_idx
+					, userinfo_id
+					, qa_option
+					, qa_title
+					, qa_content
+					, qa_img1
+					, qa_img2
+					, qa_img3
+					, qa_regdate
+					, qa_reply_status
+			FROM (
+				SELECT 
+					qa_idx
+					, userinfo_id
+					, qa_option
+					, qa_title
+					, qa_content
+					, qa_img1
+					, qa_img2
+					, qa_img3
+					, qa_regdate
+					, qa_reply_status
+				FROM qa
+				<if test="searchKeyword != null and searchType == 'title'">
+                WHERE qa_title LIKE '%' || #{searchKeyword} || '%'
+	            </if>
+	            <if test="searchKeyword != null and searchType == 'content'">
+	                WHERE qa_content LIKE '%' || #{searchKeyword} || '%'
+	            </if>
+	            <if test="searchKeyword != null and searchType == 'writer'">
+	                WHERE userinfo_id LIKE '%' || #{searchKeyword} || '%'
+	            </if>
+				ORDER BY qa_idx DESC
+			) qa 
+		)	
+		WHERE rn BETWEEN #{startRow} AND #{endRow}
+	</select>
+	
+	<!-- 답변 상태 관련 -->
+	<update id="updateQaReplyStatusToOne" parameterType="int">
+	    UPDATE qa
+	    SET qa_reply_status = 1
+	    WHERE qa_idx = #{qaIdx}
+	</update>
+	
+	<update id="updateQaReplyStatusToZero" parameterType="int">
+	    UPDATE qa
+	    SET qa_reply_status = 0
+	    WHERE qa_idx = #{qaIdx}
+	</update>
+	
+	
+	
+	<!-- 관리자 -->
+	<!-- userinfo-details -->
+	<select id="selectMyQaCount" resultType="int">
+		SELECT
+			COUNT(*) AS qa_count
+		FROM qa
+		WHERE userinfo_id = #{userinfoId}
+	</select>
+	
+	<!-- Qa 목록 조회 -->
+    <select id="selectMyQaList" resultType="Qa">
+        SELECT * FROM (
+          SELECT ROWNUM RN, BOARD.* FROM (
+          	SELECT
+				qa_idx
+				, userinfo_id
+				, qa_option
+				, qa_title
+				, qa_content
+				, qa_img1
+				, qa_img2
+				, qa_img3
+				, TO_CHAR(qa_regdate, 'yyyy-mm-dd') as qa_regdate
+				, qa_reply_status
+            FROM qa 
+            WHERE userinfo_id = #{userinfoId}
+            ORDER BY qa_idx DESC
+          ) BOARD
+      ) WHERE RN BETWEEN #{startRow} and #{endRow}<!-- 페이징 처리 -->
+    </select>
+    
+    <!-- Qa 검색 -->
+	<select id="selectQaList1" resultType="Qa">
+		SELECT * FROM (
+		SELECT ROWNUM RN, BOARD.* FROM (
+		SELECT
+				qa_idx
+				, userinfo_id
+				, qa_option
+				, qa_title
+				, qa_content
+				, qa_img1
+				, qa_img2
+				, qa_img3
+				, TO_CHAR(qa_regdate, 'yyyy-mm-dd') as qa_regdate
+				, qa_reply_status
+            FROM qa
+		WHERE
+		<choose>
+			<when test="selectKeyword != null and selectKeyword != ''">
+				(qa_idx LIKE '%' || #{selectKeyword} || '%' OR
+				qa_option LIKE '%' || #{selectKeyword} || '%' OR
+				qa_title LIKE '%' || #{selectKeyword} || '%' OR
+				qa_content LIKE '%' || #{selectKeyword} || '%' OR
+				qa_regdate LIKE '%' || #{selectKeyword} || '%' OR
+				qa_reply_status LIKE '%' || #{selectKeyword} || '%')
+			</when>
+			<otherwise>
+				1=1 <!-- 검색어가 없는 경우 모든 데이터 검색 -->
+			</otherwise>
+		</choose>
+		ORDER BY qa_idx DESC
+		) BOARD
+		) WHERE RN BETWEEN #{startRow} and #{endRow}
+	</select>
+
+	<!-- Qa 검색 Count -->
+	<select id="selectQaCount1" resultType="int">
+		SELECT COUNT(*) FROM (
+		SELECT
+				qa_idx
+				, userinfo_id
+				, qa_option
+				, qa_title
+				, qa_content
+				, qa_img1
+				, qa_img2
+				, qa_img3
+				, TO_CHAR(qa_regdate, 'yyyy-mm-dd') as qa_regdate
+				, qa_reply_status
+            FROM qa
+		WHERE
+		<choose>
+			<when test="selectKeyword != null and selectKeyword != ''">
+				(qa_idx LIKE '%' || #{selectKeyword} || '%' OR
+				qa_option LIKE '%' || #{selectKeyword} || '%' OR
+				qa_title LIKE '%' || #{selectKeyword} || '%' OR
+				qa_content LIKE '%' || #{selectKeyword} || '%' OR
+				qa_regdate LIKE '%' || #{selectKeyword} || '%' OR
+				qa_reply_status LIKE '%' || #{selectKeyword} || '%')
+			</when>
+			<otherwise>
+				1=1 <!-- 검색어가 없는 경우 모든 데이터 검색 -->
+			</otherwise>
+		</choose>
+		)
+	</select>
+	
+	<!-- 마이페이지 -->
+    <!-- 유저별 Qa 목록 조회 - 페이징 X -->
+	<select id="selectUserQaListById" resultType="Qa">
+		SELECT 
+			qa_idx
+			, userinfo_id
+			, qa_option
+			, qa_title
+			, qa_content
+			, qa_img1
+			, qa_img2
+			, qa_img3
+			, TO_CHAR(qa_regdate, 'yyyy-mm-dd') as qa_regdate
+			, qa_reply_status
+		FROM qa
+		WHERE userinfo_id = #{userinfoId}
+        ORDER BY qa_idx DESC
+    </select>
+	
+</mapper>

@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.moyeo.mapper.NoticeMapper">
+   
+   <!-- 공지사항 등록 -->
+   <insert id="insertNotice">
+      <selectKey resultType="int" keyProperty="noticeIdx" order="BEFORE">
+         SELECT notice_seq.nextval
+         FROM DUAL
+      </selectKey>
+      INSERT INTO notice
+      (
+         notice_idx
+         , userinfo_id
+         , notice_title
+         , notice_content
+         , notice_img
+         , notice_regdate
+         , notice_status
+      ) VALUES (
+         #{noticeIdx}
+         , #{userinfoId}
+         , #{noticeTitle}
+         , #{noticeContent}
+         , #{noticeImg}
+         , sysdate
+         , #{noticeStatus}
+      )
+   </insert>
+   
+   <!-- 공지사항 정보 출력 (상세페이지) -->
+   <select id="selectNoticeInfo" resultType="Notice">
+      SELECT
+         notice_idx
+         , userinfo_id
+         , notice_title
+         , notice_content
+         , notice_img
+         , TO_CHAR(notice_regdate,'yyyy-mm-dd') as notice_regdate
+         , notice_status
+         , notice_viewcnt
+      FROM notice
+      WHERE notice_idx=#{noticeIdx}
+   </select>
+
+   <!-- 공지사항 수정 -->
+   <update id="updateNotice">
+      UPDATE notice
+      SET
+      notice_title = #{noticeTitle},
+      notice_content = #{noticeContent},
+      notice_regdate = sysdate,
+      notice_img =
+      <if test="noticeImg != null and noticeImg != ''"  >
+         #{noticeImg}
+      </if>
+      WHERE notice_idx = #{noticeIdx}
+   </update>
+   
+   <!-- 공지사항 삭제 -->
+   <delete id="deleteNotice">
+   DELETE FROM notice
+   WHERE notice_idx = #{noticeIdx}
+   </delete>
+   
+   <!-- 공지사항 조회수 -->
+   <update id="viewcntNotice">
+      UPDATE notice
+      SET notice_viewcnt = notice_viewcnt + 1
+      WHERE notice_idx = #{noticeIdx}
+   </update>
+
+   <!-- 전체 게시글 조회(페이징) -->
+   <select id="selectNoticeCount" resultType="int">
+      SELECT COUNT(*) 
+      FROM notice
+      <if test="keyword != null and keyword !=''">
+      		<bind name="word" value="'%'+keyword+'%'"/>
+      		WHERE ${type} like #{word}
+      </if>
+   </select>
+    
+   <!-- 페이징된 게시글 리스트 조회 -->
+   <select id="selectNoticeList" resultType="Notice">
+      SELECT
+	      notice_idx
+	      , userinfo_id
+	      , notice_title
+	      , notice_content
+	      , notice_img
+	      , TO_CHAR(notice_regdate,'yyyy-mm-dd') as notice_regdate
+	      , notice_status
+	      , notice_viewcnt
+      FROM (
+      SELECT rownum as rn, notice.*
+      	FROM (
+      		SELECT * 
+      		FROM notice
+      			<if test="keyword != null and keyword != ''">
+      				<bind name="word" value="'%'+keyword+'%'"/>
+      				WHERE ${type} like #{word}
+      			</if>   
+      		ORDER BY notice_idx DESC
+      		) notice
+      		)
+      WHERE rn BETWEEN #{startRow} and #{endRow}
+   </select>
+   
+    <!-- 관리자 조회 -->
+    <select id="selectNoticeList1" resultType="Notice">
+		SELECT * FROM (
+		SELECT ROWNUM RN, BOARD.* FROM (
+		SELECT
+			notice_idx
+	      , userinfo_id
+	      , notice_title
+	      , notice_content
+	      , notice_img
+	      , TO_CHAR(notice_regdate,'yyyy-mm-dd') as notice_regdate
+	      , notice_status
+	      , notice_viewcnt
+			FROM notice
+		WHERE
+		<choose>
+			<when test="selectKeyword != null and selectKeyword != ''">
+				(notice_idx LIKE '%' || #{selectKeyword} || '%' OR
+				notice_title LIKE '%' || #{selectKeyword} || '%' OR
+				notice_content LIKE '%' || #{selectKeyword} || '%' OR
+				notice_regdate LIKE '%' || #{selectKeyword} || '%' OR
+				notice_status LIKE '%' || #{selectKeyword} || '%' OR
+				notice_viewcnt LIKE '%' || #{selectKeyword} || '%')
+			</when>
+			<otherwise>
+				1=1 <!-- 검색어가 없는 경우 모든 데이터 검색 -->
+			</otherwise>
+		</choose>
+		ORDER BY notice_idx DESC
+		) BOARD
+		) WHERE RN BETWEEN #{startRow} and #{endRow}
+	</select>
+   
+   <!-- 패키지 검색 Count -->
+	<select id="selectNoticeCount1" resultType="int">
+		SELECT COUNT(*) FROM (
+		SELECT
+			notice_idx
+		      , userinfo_id
+		      , notice_title
+		      , notice_content
+		      , notice_img
+		      , TO_CHAR(notice_regdate,'yyyy-mm-dd') as notice_regdate
+		      , notice_status
+		      , notice_viewcnt
+				FROM notice
+		WHERE
+		<choose>
+			<when test="selectKeyword != null and selectKeyword != ''">
+				(notice_idx LIKE '%' || #{selectKeyword} || '%' OR
+				notice_title LIKE '%' || #{selectKeyword} || '%' OR
+				notice_content LIKE '%' || #{selectKeyword} || '%' OR
+				notice_regdate LIKE '%' || #{selectKeyword} || '%' OR
+				notice_status LIKE '%' || #{selectKeyword} || '%' OR
+				notice_viewcnt LIKE '%' || #{selectKeyword} || '%')
+			</when>
+			<otherwise>
+				1=1 <!-- 검색어가 없는 경우 모든 데이터 검색 -->
+			</otherwise>
+		</choose>
+		)
+	</select>
+
+
+</mapper>

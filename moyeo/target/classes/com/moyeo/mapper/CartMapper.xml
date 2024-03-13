@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.moyeo.mapper.CartMapper">
+	
+    <!-- 1. 장바구니 추가 -->
+    <insert id="addCart" parameterType="com.moyeo.dto.CartDTO">
+    INSERT INTO cart (cart_idx, userinfo_id, pack_idx, pack_adultcount, pack_childcount, pack_previewimg)
+    VALUES (cart_seq.NEXTVAL, #{userinfoId}, #{packIdx}, #{packAdultcount}, #{packChildcount}, #{packPreviewImg} )
+</insert>
+    
+    <!-- 2. 장바구니 목록 -->
+	<select id="cartList" parameterType="com.moyeo.dto.CartDTO">
+    SELECT
+        c.cart_idx as cartIdx,
+        c.userinfo_id as userinfoId,
+        c.pack_idx as packIdx,
+        c.pack_previewimg as packPreviewImg,
+        p.pack_title as packTitle,  
+        c.pack_adultcount as packAdultcount,
+        c.pack_childcount as packChildcount,
+        (c.pack_adultcount * p.pack_adultprice + c.pack_childcount * p.pack_childprice) as packTotalprice
+    FROM
+        cart c, pack p, userinfo u
+  WHERE u.id = c.userinfo_id
+    AND p.pack_idx = c.pack_idx
+   	AND c.userinfo_id = #{userinfoId}
+	ORDER BY c.cart_idx
+	</select>
+    <!-- 3. 장바구니 인원수 수정 -->
+	<update id="updateCart">
+    UPDATE cart
+    SET pack_adultcount = #{packAdultcount},
+        pack_childcount = #{packChildcount}
+    WHERE userinfo_id= #{userinfoId}
+    AND cart_idx = #{cartIdx} 
+	</update>
+
+   <!-- 4. 장바구니 전체금액 합계 -->
+	<select id="sumTotal" resultType="int">
+    SELECT NVL(SUM(c.pack_adultcount * p.pack_adultprice + c.pack_childcount * p.pack_childprice), 0) as packTotalprice
+    FROM cart c
+    JOIN pack p ON c.pack_idx = p.pack_idx
+    WHERE c.userinfo_id = #{userinfoId}
+	</select>
+
+    <!-- 5. 장바구니 삭제 -->	
+	<delete parameterType="int" id="deleteCart">
+	DELETE FROM cart WHERE cart_idx = #{cartIdx}
+	</delete>
+    
+    <!-- 장바구니 추가 페이지에서 모든 패키지 목록을 가져오는 쿼리문 -->
+  <select id="getAllCartItemsWithPackages" parameterType="String" resultType="java.util.Map">
+    SELECT p.pack_idx as packIdx, p.pack_title AS packTitle
+    FROM pack p
+    WHERE p.pack_idx NOT IN (
+        SELECT c.pack_idx FROM cart c WHERE c.userinfo_id = #{userinfoId}
+    )
+	</select>
+	
+	<!-- 결제 -->
+	<select id="selectCartByIdx" resultType="CartDTO">
+		SELECT 
+			cart_idx
+			, userinfo_id
+			, pack_idx
+			, pack_adultcount
+			, pack_childcount
+		FROM cart
+		WHERE cart_idx= #{cartIdx}
+	</select>
+	
+	</mapper>
